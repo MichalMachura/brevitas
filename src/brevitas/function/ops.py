@@ -166,7 +166,7 @@ def identity(x: Tensor) -> Tensor:
 
 
 @brevitas.jit.script
-def max_int(signed: bool, narrow_range: bool, bit_width: Tensor) -> Tensor:
+def max_int(signed: Tensor, narrow_range: Tensor, bit_width: Tensor) -> Tensor:
     """ Compute the maximum integer representable by a given number of bits.
 
     Args:
@@ -178,26 +178,22 @@ def max_int(signed: bool, narrow_range: bool, bit_width: Tensor) -> Tensor:
         Tensor: Maximum integer that can be represented according to the input arguments.
 
     Examples:
-        >>> max_int(signed=True, narrow_range=True, bit_width=torch.tensor(8))
-        tensor(127)
-        >>> max_int(signed=False, narrow_range=True, bit_width=torch.tensor(8))
-        tensor(254)
-        >>> max_int(signed=True, narrow_range=False, bit_width=torch.tensor(8))
-        tensor(127)
-        >>> max_int(signed=False, narrow_range=False, bit_width=torch.tensor(8))
-        tensor(255)
+        >>> max_int(signed=torch.tensor(1.0), narrow_range=torch.tensor(1.0), bit_width=torch.tensor(8))
+        tensor(127.0)
+        >>> max_int(signed=torch.tensor(0.0), narrow_range=torch.tensor(1.0), bit_width=torch.tensor(8))
+        tensor(254.0)
+        >>> max_int(signed=torch.tensor(1.0), narrow_range=torch.tensor(0.0), bit_width=torch.tensor(8))
+        tensor(127.0)
+        >>> max_int(signed=torch.tensor(0.0), narrow_range=torch.tensor(0.0), bit_width=torch.tensor(8))
+        tensor(255.0)
     """
-    if not signed and not narrow_range:
-        value = (2 ** bit_width) - 1
-    elif not signed and narrow_range:
-        value = (2 ** bit_width) - 2
-    else:
-        value = (2 ** (bit_width - 1)) - 1
+    value = 2 ** (bit_width-signed) - 1.0 - narrow_range
+    
     return value
 
 
 @brevitas.jit.script
-def min_int(signed: bool, narrow_range: bool, bit_width: Tensor) -> Tensor:
+def min_int(signed: Tensor, narrow_range: Tensor, bit_width: Tensor) -> Tensor:
     """ Compute the minimum integer representable by a given number of bits.
 
     Args:
@@ -209,14 +205,14 @@ def min_int(signed: bool, narrow_range: bool, bit_width: Tensor) -> Tensor:
         Tensor: Maximum unsigned integer that can be represented according to the input arguments.
 
     Examples:
-        >>> min_int(signed=True, narrow_range=True, bit_width=torch.tensor(8))
-        tensor(-127)
-        >>> min_int(signed=False, narrow_range=True, bit_width=torch.tensor(8))
-        tensor(0)
-        >>> min_int(signed=True, narrow_range=False, bit_width=torch.tensor(8))
-        tensor(-128)
-        >>> min_int(signed=False, narrow_range=False, bit_width=torch.tensor(8))
-        tensor(0)
+        >>> min_int(signed=torch.tensor(1.0), narrow_range=torch.tensor(1.0), bit_width=torch.tensor(8))
+        tensor(-127.0)
+        >>> min_int(signed=torch.tensor(0.0), narrow_range=torch.tensor(1.0), bit_width=torch.tensor(8))
+        tensor(0.0)
+        >>> min_int(signed=torch.tensor(1.0), narrow_range=torch.tensor(0.0), bit_width=torch.tensor(8))
+        tensor(-128.0)
+        >>> min_int(signed=torch.tensor(0.0), narrow_range=torch.tensor(0.0), bit_width=torch.tensor(8))
+        tensor(0.0)
     """
     if signed and narrow_range:
         value = - (2 ** (bit_width - 1)) + 1
@@ -224,4 +220,5 @@ def min_int(signed: bool, narrow_range: bool, bit_width: Tensor) -> Tensor:
         value = - (2 ** (bit_width - 1))
     else:
         value = 0 * bit_width
+    value = -signed * 2 **(bit_width - signed)
     return value

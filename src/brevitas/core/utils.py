@@ -1,4 +1,4 @@
-from typing import Optional
+from typing import Optional, Union
 import torch
 
 import brevitas
@@ -56,3 +56,39 @@ class StatelessBuffer(brevitas.jit.ScriptModule):
         output_dict = super(StatelessBuffer, self).state_dict(destination, prefix, keep_vars)
         del output_dict[prefix + VALUE_ATTR_NAME]
         return output_dict
+
+
+@brevitas.jit.script
+def to_scalar_tensor(value:Union[float, torch.Tensor])->torch.Tensor:
+    if type(value) is float:
+        return torch.tensor(value, dtype=torch.float32)
+    
+    # must be one-element == scalar tensor
+    elif isinstance(value,torch.Tensor) and value.numel() == 1:
+        # to scalar tensor
+        value = value.flatten()[0]
+        return value.to(torch.float32)
+        
+    else:
+        raise RuntimeError("Convesion to scalar tensor is available only" 
+                           " for float scalar or torch.Tensor with one element.")
+
+
+@brevitas.jit.script
+def to_logit(p:torch.Tensor)->torch.Tensor:
+    # limit probability to interior of (0.0; 1.0)
+    p = torch.clamp(p, min=0.1, max=0.9)
+    # get logit
+    arg = torch.logit(p)
+    # limit_logit for edge cases it can be -inf or inf
+    abs_max = 1.0
+    arg = torch.clamp(arg, min=-abs_max, max=abs_max)
+    
+    return arg
+
+
+@brevitas.jit.script
+def to_logistic(x:torch.Tensor)->torch.Tensor:
+    # use sigmoid as probaility function
+    return torch.sigmoid(x)
+    
